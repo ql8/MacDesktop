@@ -1,49 +1,51 @@
+<!-- Language: English | [简体中文](./README.zh-CN.md) -->
+
 # macdesktop
 
-Windows **虚拟桌面 (Virtual Desktop)** 控制 API，供 **Electron / Node.js** 调用：枚举 / 新建 / 切换 / 删除桌面，把窗口移动到指定桌面等。
+A **Windows Virtual Desktop** control API for **Electron / Node.js**: enumerate / create / switch / remove desktops, move windows to a specific desktop, and more.
 
-> 仅支持 **Windows x64**。虚拟桌面依赖系统未公开的 COM 接口，本包不重写 COM，而是复用经过实测的 C# 封装，通过一个轻量 **桥接子进程**（`MacDesktop.Bridge.exe`）以 JSON 行协议通信。
+> **Windows x64 only.** Virtual desktops depend on undocumented system COM interfaces. This package does not reimplement COM; instead it reuses a battle-tested C# wrapper and talks to it through a lightweight **bridge subprocess** (`MacDesktop.Bridge.exe`) over a JSON-lines protocol.
 
-## 安装与准备
+## Install & Setup
 
 ```bash
 npm install macdesktop
 ```
 
-包内不预置 exe，首次使用前需构建桥接程序（需 [.NET 8 SDK](https://dotnet.microsoft.com/download)）：
+The package does not ship a prebuilt exe. Before first use, build the bridge (requires the [.NET 8 SDK](https://dotnet.microsoft.com/download)):
 
 ```bash
 npm run build-bridge --prefix node_modules/macdesktop
-# 或进入包目录执行 npm run build-bridge
+# or run `npm run build-bridge` from inside the package directory
 ```
 
-构建产物为 self-contained 单文件 `bin/MacDesktop.Bridge.exe`，**目标机无需安装 .NET**。
-也可用环境变量 `MACDESKTOP_BRIDGE` 指向已有的 exe，跳过构建。
+The output is a self-contained single file `bin/MacDesktop.Bridge.exe`, so **the target machine does not need .NET installed**.
+You can also set the `MACDESKTOP_BRIDGE` environment variable to point at an existing exe and skip the build.
 
-## 快速上手
+## Quick Start
 
 ```js
 const { VirtualDesktop } = require('macdesktop');
 
 const vd = new VirtualDesktop();
 
-console.log(await vd.count());            // 桌面总数
-console.log(await vd.getCurrentIndex());  // 当前桌面索引
+console.log(await vd.count());            // total number of desktops
+console.log(await vd.getCurrentIndex());  // current desktop index
 console.log(await vd.list());             // [{ index, name, id }, ...]
 
-const idx = await vd.create();            // 新建桌面
-await vd.switchTo(idx);                    // 切过去
+const idx = await vd.create();            // create a desktop
+await vd.switchTo(idx);                    // switch to it
 
-vd.dispose();                              // 用完释放子进程
+vd.dispose();                              // release the subprocess when done
 ```
 
-## 在 Electron 中把窗口移动到新桌面
+## Move a Window to a New Desktop in Electron
 
 ```js
 const { VirtualDesktop } = require('macdesktop');
 
 const vd = new VirtualDesktop();
-const hwnd = win.getNativeWindowHandle(); // Buffer，直接传入即可
+const hwnd = win.getNativeWindowHandle(); // a Buffer, pass it in directly
 
 const idx = await vd.create();
 await vd.moveWindow(hwnd, idx);
@@ -52,32 +54,32 @@ await vd.switchTo(idx);
 app.on('before-quit', () => vd.dispose());
 ```
 
-完整示例见 [`examples/electron-main.js`](./examples/electron-main.js)。
+See the full example in [`examples/electron-main.js`](./examples/electron-main.js).
 
 ## API
 
-`new VirtualDesktop(options?)` — `options.bridgePath` 可覆盖 exe 自动探测。
+`new VirtualDesktop(options?)` — `options.bridgePath` overrides automatic exe detection.
 
-| 方法 | 返回 | 说明 |
+| Method | Returns | Description |
 | --- | --- | --- |
-| `count()` | `Promise<number>` | 虚拟桌面总数 |
-| `getCurrentIndex()` | `Promise<number>` | 当前桌面索引（从 0 开始） |
-| `list()` | `Promise<DesktopInfo[]>` | 所有桌面 `{ index, name, id }` |
-| `create()` | `Promise<number>` | 新建桌面，返回索引 |
-| `remove(index, fallbackIndex?)` | `Promise<true>` | 删除桌面；`fallbackIndex` 省略时自动选相邻 |
-| `switchTo(index)` | `Promise<true>` | 切换到指定桌面 |
-| `getName(index)` | `Promise<string>` | 读取桌面名 |
-| `setName(index, name)` | `Promise<true>` | 设置桌面名 |
-| `setAnimation(enabled)` | `Promise<true>` | 开关切换动画 |
-| `moveWindow(hwnd, index)` | `Promise<true>` | 把窗口移到指定桌面 |
-| `getWindowDesktopIndex(hwnd)` | `Promise<number>` | 窗口所在桌面索引 |
-| `isWindowOnCurrent(hwnd)` | `Promise<boolean>` | 窗口是否在当前桌面 |
-| `dispose()` | `void` | 结束桥接子进程 |
+| `count()` | `Promise<number>` | Total number of virtual desktops |
+| `getCurrentIndex()` | `Promise<number>` | Current desktop index (0-based) |
+| `list()` | `Promise<DesktopInfo[]>` | All desktops `{ index, name, id }` |
+| `create()` | `Promise<number>` | Create a desktop, returns its index |
+| `remove(index, fallbackIndex?)` | `Promise<true>` | Remove a desktop; when `fallbackIndex` is omitted an adjacent one is chosen automatically |
+| `switchTo(index)` | `Promise<true>` | Switch to the given desktop |
+| `getName(index)` | `Promise<string>` | Read a desktop's name |
+| `setName(index, name)` | `Promise<true>` | Set a desktop's name |
+| `setAnimation(enabled)` | `Promise<true>` | Toggle the switch animation |
+| `moveWindow(hwnd, index)` | `Promise<true>` | Move a window to the given desktop |
+| `getWindowDesktopIndex(hwnd)` | `Promise<number>` | Index of the desktop a window is on |
+| `isWindowOnCurrent(hwnd)` | `Promise<boolean>` | Whether a window is on the current desktop |
+| `dispose()` | `void` | Terminate the bridge subprocess |
 
-`hwnd` 接受 `Buffer`（Electron `getNativeWindowHandle()`）、`number`、`bigint` 或十进制字符串。
+`hwnd` accepts a `Buffer` (Electron's `getNativeWindowHandle()`), a `number`, a `bigint`, or a decimal string.
 
-## 说明
+## Notes
 
-- **架构**：Node 侧 spawn 一个常驻的 `MacDesktop.Bridge.exe`，二者用 stdin/stdout 上的 JSON Lines 通信，一次实例化对应一个子进程。
-- **兼容性**：COM 接口 GUID 针对具体 Windows build 硬编码，大版本更新后可能需要更新桥接程序中的封装（见根仓库 `VirtualDesktopApi.cs`）。
-- **许可**：MIT。COM 封装来源 Markus Scholtes / VirtualDesktop（MIT）。
+- **Architecture**: the Node side spawns a long-lived `MacDesktop.Bridge.exe` and communicates over JSON Lines on stdin/stdout; one instance maps to one subprocess.
+- **Compatibility**: the COM interface GUIDs are hardcoded for a specific Windows build; a major update may require updating the wrapper in the bridge (see `VirtualDesktopApi.cs` in the root repo).
+- **License**: MIT. COM wrapper based on Markus Scholtes / VirtualDesktop (MIT).

@@ -1,118 +1,120 @@
+<!-- Language: English | [简体中文](./README.zh-CN.md) -->
+
 # Mac Desktop
 
-在 Windows 上模拟 macOS 的「最大化即进入独立 Space」体验：
+Bring the macOS "maximize into its own Space" experience to Windows.
 
-当某个窗口进入**最大化**（或**无边框全屏**）时，程序会自动：
+When a window becomes **maximized** (or goes **borderless fullscreen**), the app automatically:
 
-1. 新建一个虚拟桌面
-2. 把该窗口移动到新桌面
-3. 切换到新桌面
+1. Creates a new virtual desktop
+2. Moves that window to the new desktop
+3. Switches to the new desktop
 
-当窗口**退出最大化**（或被关闭）时，程序会：
+When the window **leaves the maximized state** (or is closed), the app:
 
-1. 把窗口移回原来的桌面
-2. 切回原桌面
-3. 删除临时创建的虚拟桌面
+1. Moves the window back to its original desktop
+2. Switches back to that desktop
+3. Deletes the temporary virtual desktop it created
 
-效果类似 macOS：双击标题栏最大化 → 自动进入一个新的 Space，退出最大化自动返回。
+The result feels like macOS: double-click the title bar to maximize → you land in a fresh Space; exit maximize → you return automatically.
 
 ---
 
-## 运行环境
+## Requirements
 
-- Windows 10 (build 19041 / 20H1) 或更高，推荐 **Windows 11**
-- [.NET 8 SDK](https://dotnet.microsoft.com/download)（构建时需要）
+- Windows 10 (build 19041 / 20H1) or later, **Windows 11** recommended
+- [.NET 8 SDK](https://dotnet.microsoft.com/download) (needed to build)
 
-> 虚拟桌面依赖的是系统未公开的 COM 接口，Windows 每个大版本可能变动。
-> 本项目**不使用任何外部 NuGet 封装库**，而是在 `VirtualDesktopApi.cs` 中内嵌了针对当前
-> build 硬编码接口 GUID 的 COM 封装（来源：Markus Scholtes / VirtualDesktop，MIT）。
-> 这样规避了动态解析型库（如 Grabacr07/VirtualDesktop）常见的
-> `The given key 'IApplicationView' was not present in the dictionary` 兼容性崩溃。
-> 若某次 Windows 大版本更新后失效，需按新 build 更新 `VirtualDesktopApi.cs` 中的接口 GUID。
+> Virtual desktops rely on undocumented system COM interfaces that may change with every major Windows release.
+> This project **does not depend on any external NuGet wrapper**. Instead, `VirtualDesktopApi.cs` embeds a COM
+> wrapper with interface GUIDs hardcoded for the current build (source: Markus Scholtes / VirtualDesktop, MIT).
+> This avoids the compatibility crashes common to dynamic-resolution libraries (e.g. Grabacr07/VirtualDesktop),
+> such as `The given key 'IApplicationView' was not present in the dictionary`.
+> If a major Windows update breaks it, update the interface GUIDs in `VirtualDesktopApi.cs` for the new build.
 
-## 构建与运行
+## Build & Run
 
 ```bash
-# 在项目根目录
+# From the project root
 dotnet restore
 dotnet build -c Release
 
-# 直接运行
+# Run directly
 dotnet run -c Release
 ```
 
-或发布为独立可执行文件：
+Or publish as a standalone executable:
 
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained false -o publish
-# 运行 publish/MacDesktop.exe
+# Run publish/MacDesktop.exe
 ```
 
-启动后程序常驻**系统托盘**（不显示窗口）。右键托盘图标：
+Once started, the app lives in the **system tray** (no window is shown). Right-click the tray icon:
 
-- **已启用**：勾选/取消勾选来开关整体功能
-- **处理无边框全屏**：是否把「铺满整个显示器的无边框窗口」也视为触发条件
-- **退出**：退出程序并把仍在临时桌面上的窗口恢复回去
+- **Enabled**: toggle the whole feature on/off
+- **Handle borderless fullscreen**: whether borderless windows that fill the entire monitor also count as a trigger
+- **Exit**: quit the app and restore any windows still on temporary desktops
 
-## 打包为安装包
+## Packaging an Installer
 
-程序常驻托盘，做成安装包可一并处理**开机自启、开始菜单快捷方式、卸载清理**。
+Since the app runs in the tray, an installer can also handle **auto-start on boot, Start Menu shortcuts, and uninstall cleanup**.
 
-前置：安装 [Inno Setup 6](https://jrsoftware.org/isdl.php)（免费）。
+Prerequisite: install [Inno Setup 6](https://jrsoftware.org/isdl.php) (free).
 
-一键构建（发布单文件 exe + 编译安装包）：
+One-click build (publish single-file exe + compile installer):
 
 ```bash
 build-installer.bat
 ```
 
-产物：`installer\Output\MacDesktop-Setup.exe`。安装向导中可勾选「开机自启」与「创建开始菜单快捷方式」。
+Output: `installer\Output\MacDesktop-Setup.exe`. The wizard offers "start on boot" and "create Start Menu shortcut" options.
 
-> 安装脚本见 `installer\MacDesktop.iss`，如需简体中文向导界面，按文件内注释下载 `ChineseSimplified.isl` 并取消对应行注释。
+> The install script is `installer\MacDesktop.iss`. For a Simplified Chinese wizard UI, download `ChineseSimplified.isl` and uncomment the relevant line as noted in the file.
 
-## GitHub 自动打包 (CI)
+## Automated Builds (CI)
 
-仓库已内置 GitHub Actions 工作流 `.github/workflows/build.yml`，每次构建都产出**两种版本**：
+The repo ships with a GitHub Actions workflow at `.github/workflows/build.yml` that produces **two flavors** on every build:
 
-| 产物 | 说明 |
+| Artifact | Description |
 | --- | --- |
-| `MacDesktop-Setup-vX.exe` | 安装包版：安装到 Program Files，可选开机自启/快捷方式，带卸载器 |
-| `MacDesktop-vX-portable.exe` | 免安装版：self-contained 单文件，双击即用，无需装 .NET |
+| `MacDesktop-Setup-vX.exe` | Installer edition: installs to Program Files, optional auto-start/shortcut, includes an uninstaller |
+| `MacDesktop-vX-portable.exe` | Portable edition: self-contained single file, double-click to run, no .NET required |
 
-触发规则：
+Triggers:
 
-- **push 到 `main`/`master`** 或**手动触发**：构建后两个产物作为 **Artifact** 存档（在 Actions 运行页面下载）。
-- **推送形如 `v1.2.3` 的 tag**：额外创建 **GitHub Release**，同时附带上述两个文件，版本号取自 tag。
+- **Push to `main`/`master`** or **manual dispatch**: both artifacts are archived as **Artifacts** (downloadable from the Actions run page).
+- **Push a tag like `v1.2.3`**: additionally creates a **GitHub Release** with both files attached; the version is taken from the tag.
 
-发布一个正式版本示例：
+Example of cutting a release:
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-> 版本号通过 `ISCC /DMyAppVersion=...` 注入到安装包，无需改脚本。
+> The version is injected into the installer via `ISCC /DMyAppVersion=...`; no script changes needed.
 
-## 工作原理
+## How It Works
 
-- 通过 `SetWinEventHook` 全局监听 `EVENT_OBJECT_LOCATIONCHANGE` 与 `EVENT_OBJECT_DESTROY`。
-- 对每个顶层窗口检测最大化状态（`IsZoomed`）或是否铺满显示器（对比窗口矩形与显示器矩形）。
-- 仅在**状态发生跳变**（正常→最大化 / 最大化→正常）时执行虚拟桌面操作，避免拖动/抖动导致的重复触发。
-- 本程序自身发起的移动/切换操作期间会临时屏蔽事件，防止递归触发。
+- Uses `SetWinEventHook` to globally listen for `EVENT_OBJECT_LOCATIONCHANGE` and `EVENT_OBJECT_DESTROY`.
+- For each top-level window, detects the maximized state (`IsZoomed`) or whether it fills the monitor (comparing the window rect against the monitor rect).
+- Virtual-desktop operations run **only on a state transition** (normal→maximized / maximized→normal), avoiding repeated triggers from dragging/jitter.
+- Events are temporarily suppressed during the app's own move/switch operations to prevent recursive triggering.
 
-## 可调整项
+## Tunables
 
-在 `MaximizeWatcher.cs` 顶部的属性中调整：
+Adjust the properties at the top of `MaximizeWatcher.cs`:
 
-| 属性 | 默认 | 说明 |
+| Property | Default | Description |
 | --- | --- | --- |
-| `HandleFullscreen` | `true` | 是否处理无边框全屏窗口 |
-| `RequireCaption` | `true` | 仅处理带标题栏的窗口（关闭后可覆盖部分无边框全屏游戏/播放器） |
-| `RemoveDesktopOnRestore` | `true` | 恢复后是否删除临时创建的虚拟桌面 |
+| `HandleFullscreen` | `true` | Whether to handle borderless fullscreen windows |
+| `RequireCaption` | `true` | Only handle windows with a title bar (turning this off can cover some borderless fullscreen games/players) |
+| `RemoveDesktopOnRestore` | `true` | Whether to delete the temporary virtual desktop after restoring |
 
-## 已知限制
+## Known Limitations
 
-- 依赖系统内部 COM 接口，**Windows 大版本更新后可能需要更新 `VirtualDesktopApi.cs` 中的接口 GUID**。
-- 部分**无边框全屏游戏**会独占显示（DirectX 全屏），此类窗口未必能被移动到其它虚拟桌面。
-- 默认 `RequireCaption = true`，无标题栏的全屏程序不会被处理；如需覆盖可将其设为 `false`（可能带来误触发，请自行取舍）。
-- 一个窗口在临时桌面时若被拖回其它桌面等手动操作，程序状态可能与实际不同步。
+- Relies on internal system COM interfaces, so **a major Windows update may require updating the interface GUIDs in `VirtualDesktopApi.cs`**.
+- Some **borderless fullscreen games** take exclusive display ownership (DirectX fullscreen); such windows may not be movable to other virtual desktops.
+- With the default `RequireCaption = true`, fullscreen programs without a title bar are ignored; set it to `false` to cover them (at the risk of false triggers — your call).
+- If a window on a temporary desktop is manually dragged back to another desktop, the app's state may fall out of sync with reality.

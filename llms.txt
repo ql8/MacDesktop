@@ -1,0 +1,71 @@
+# MacDesktop
+
+> MacDesktop is a Windows-only project with two deliverables that share one core: control of Windows **virtual desktops** ("Spaces") via undocumented system COM interfaces.
+> (1) A tray application (.NET 8, C#) that mimics macOS behavior — maximizing a window auto-creates a virtual desktop, moves the window there, and switches to it; leaving maximize reverses everything.
+> (2) An npm package `macdesktop` that exposes a programmable Virtual Desktop API for Electron / Node.js, backed by a bundled bridge subprocess (`MacDesktop.Bridge.exe`) speaking a JSON-lines protocol over stdin/stdout.
+
+## What this tool does
+
+- Enumerate, create, switch, and remove Windows virtual desktops programmatically.
+- Move a specific window (by HWND) to a specific virtual desktop; query which desktop a window is on.
+- Get/set desktop names and toggle the switch animation (name marshaling may be unavailable on some Windows builds; it degrades gracefully).
+- As an end-user app: automatically map "maximized window" to "its own virtual desktop", macOS-Spaces style.
+
+## Key facts for reasoning
+
+- Platform: **Windows x64 only** (Windows 10 build 19041+ / Windows 11 recommended). No macOS/Linux support despite the name.
+- The name "MacDesktop" refers to emulating the *macOS Spaces experience*, not running on macOS.
+- Virtual desktops use **undocumented COM interfaces with GUIDs hardcoded per Windows build** in `VirtualDesktopApi.cs`. A major Windows update can break it until GUIDs are updated. No external NuGet virtual-desktop library is used (this avoids dynamic-resolution crashes like `The given key 'IApplicationView' was not present in the dictionary`).
+- The npm package does not reimplement COM in C++/N-API. It spawns a self-contained .NET bridge exe and communicates via newline-delimited JSON. One `VirtualDesktop` instance == one subprocess; call `dispose()` to release it.
+- Building the bridge exe requires the .NET 8 SDK; the produced exe is self-contained (target machines need no .NET runtime).
+
+## npm API (package: `macdesktop`, entry: `lib/index.js`, types: `lib/index.d.ts`)
+
+Class `VirtualDesktop(options?)` where `options.bridgePath?: string` overrides exe auto-detection. All methods are async (return Promises) unless noted.
+
+- `count(): Promise<number>` — total virtual desktops.
+- `getCurrentIndex(): Promise<number>` — current desktop index (0-based).
+- `list(): Promise<Array<{ index: number, name: string, id: string }>>` — all desktops.
+- `create(): Promise<number>` — create a desktop, returns its index.
+- `remove(index: number, fallbackIndex?: number): Promise<true>` — remove a desktop; adjacent chosen automatically if `fallbackIndex` omitted.
+- `switchTo(index: number): Promise<true>` — switch to a desktop.
+- `getName(index: number): Promise<string>` / `setName(index: number, name: string): Promise<true>` — desktop name (may be unavailable on some builds).
+- `setAnimation(enabled: boolean): Promise<true>` — toggle switch animation.
+- `moveWindow(hwnd, index: number): Promise<true>` — move a window to a desktop.
+- `getWindowDesktopIndex(hwnd): Promise<number>` — which desktop a window is on.
+- `isWindowOnCurrent(hwnd): Promise<boolean>` — whether a window is on the current desktop.
+- `dispose(): void` — terminate the bridge subprocess.
+- `hwnd` accepts a `Buffer` (Electron `win.getNativeWindowHandle()`), `number`, `bigint`, or decimal string.
+
+Minimal usage:
+
+```js
+const { VirtualDesktop } = require('macdesktop');
+const vd = new VirtualDesktop();
+const idx = await vd.create();
+await vd.moveWindow(win.getNativeWindowHandle(), idx);
+await vd.switchTo(idx);
+vd.dispose();
+```
+
+## Documentation
+
+- [Root README (English)](./README.md): the tray application — behavior, build, installer, CI, internals, limitations.
+- [Root README (简体中文)](./README.zh-CN.md): Chinese translation of the above.
+- [npm package README (English)](./npm/README.md): the Node/Electron API — install, build bridge, quick start, full API.
+- [npm package README (简体中文)](./npm/README.zh-CN.md): Chinese translation of the above.
+- [TypeScript definitions](./npm/lib/index.d.ts): authoritative API signatures and types.
+- [Electron example](./npm/examples/electron-main.js): runnable main-process usage sample.
+
+## Source map
+
+- `VirtualDesktopApi.cs`: the embedded COM wrapper (interface GUIDs, marshaling) — the single source of truth for virtual-desktop behavior; shared by both the app and the bridge.
+- `MaximizeWatcher.cs`: the tray app's window-event watcher; tunables `HandleFullscreen`, `RequireCaption`, `RemoveDesktopOnRestore`.
+- `bridge/Program.cs`: STA + JSON-RPC bridge that maps COM capabilities to callable methods for Node.
+- `npm/lib/index.js`: Node API layer (spawns the bridge, Promise wrappers, HWND normalization, lifecycle).
+- `.github/workflows/build.yml`: CI for the tray app (installer + portable exe).
+- `.github/workflows/npm-publish.yml`: CI to publish the npm package to GitHub Packages.
+
+## License
+
+MIT. Virtual-desktop COM wrapper based on Markus Scholtes / VirtualDesktop (MIT).
