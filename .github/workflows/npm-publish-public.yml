@@ -1,11 +1,13 @@
-name: Publish npm package
+name: Publish to npmjs.org
 
 # 触发条件：
-#   - push 形如 v1.2.3 的 tag：构建 bridge exe + 发布 npm 包到 GitHub Packages
+#   - push 形如 v1.2.3 的 tag：构建 bridge exe + 发布到公共 npmjs.org
 #   - 手动触发（Actions 页面 Run workflow，可自定义版本号）
 #
-# 产物：@<owner>/macdesktop，内含预编译的 bin/MacDesktop.Bridge.exe，
-#      安装方无需 .NET SDK，开箱即用。
+# 前置：需在仓库 Settings > Secrets > Actions 添加 NPM_TOKEN
+#      （npmjs.org 账号的 Automation / Publish token）。
+# 产物：macdesktop（无 scope，公共包），内含预编译 bin/MacDesktop.Bridge.exe，
+#      安装方零配置：npm i macdesktop 即可。
 on:
   push:
     tags: ["v*"]
@@ -15,10 +17,6 @@ on:
         description: "手动发布时的版本号（如 1.2.3），留空则用 1.0.0"
         required: false
         default: ""
-
-permissions:
-  contents: read
-  packages: write   # 发布到 GitHub Packages 需要
 
 jobs:
   publish:
@@ -37,9 +35,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          registry-url: "https://npm.pkg.github.com"
-          # scope 必须与包名 @<owner> 一致，否则鉴权/路由失败
-          scope: "@${{ github.repository_owner }}"
+          registry-url: "https://registry.npmjs.org"
 
       # 从 tag 推导版本号（v1.2.3 -> 1.2.3）；手动触发用输入值，否则 1.0.0
       - name: Resolve version
@@ -65,25 +61,18 @@ jobs:
           --self-contained true -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true -o npm/bin
 
-      # 动态注入 scope 包名 + 版本号（不改动源 package.json）
-      - name: Patch package.json (scope + version)
+      # 注入版本号（不改动源 package.json 的其它字段）
+      - name: Set version
         shell: pwsh
         working-directory: npm
         run: |
-          $owner = "${{ github.repository_owner }}".ToLower()
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          $pkg.name = "@$owner/macdesktop"
           $pkg.version = "${{ steps.ver.outputs.version }}"
-          # 指定发布到 GitHub Packages
-          if (-not $pkg.publishConfig) {
-            $pkg | Add-Member -NotePropertyName publishConfig -NotePropertyValue ([pscustomobject]@{})
-          }
-          $pkg.publishConfig = [pscustomobject]@{ registry = "https://npm.pkg.github.com" }
           $pkg | ConvertTo-Json -Depth 20 | Set-Content package.json -Encoding UTF8
-          Write-Host "package name = $($pkg.name)@$($pkg.version)"
+          Write-Host "package = $($pkg.name)@$($pkg.version)"
 
-      - name: Publish to GitHub Packages
+      - name: Publish to npmjs.org
         working-directory: npm
-        run: npm publish
+        run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
