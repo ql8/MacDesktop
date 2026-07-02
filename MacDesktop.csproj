@@ -18,6 +18,14 @@
 
   <!-- 虚拟桌面 API 由 VirtualDesktopApi.cs 内嵌实现，无外部 NuGet 依赖 -->
 
+  <!-- bridge/ 是独立的桥接子进程项目（有自己的 .csproj 与 Main），
+       根 GUI 项目默认会 glob 所有 .cs，必须排除，否则出现多个入口点 CS0017 -->
+  <ItemGroup>
+    <Compile Remove="bridge/**/*.cs" />
+  </ItemGroup>
+
+
+
 
 
 </Project>
