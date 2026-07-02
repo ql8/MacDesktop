@@ -72,10 +72,17 @@ build-installer.bat
 
 ## GitHub 自动打包 (CI)
 
-仓库已内置 GitHub Actions 工作流 `.github/workflows/build.yml`：
+仓库已内置 GitHub Actions 工作流 `.github/workflows/build.yml`，每次构建都产出**两种版本**：
 
-- **push 到 `main`/`master`** 或**手动触发**：在 Windows runner 上自动发布单文件 exe 并编译安装包，产物作为 **Artifact** 存档（在 Actions 运行页面下载）。
-- **推送形如 `v1.2.3` 的 tag**：除构建外，自动创建 **GitHub Release** 并附带 `MacDesktop-Setup.exe`，版本号取自 tag。
+| 产物 | 说明 |
+| --- | --- |
+| `MacDesktop-Setup-vX.exe` | 安装包版：安装到 Program Files，可选开机自启/快捷方式，带卸载器 |
+| `MacDesktop-vX-portable.exe` | 免安装版：self-contained 单文件，双击即用，无需装 .NET |
+
+触发规则：
+
+- **push 到 `main`/`master`** 或**手动触发**：构建后两个产物作为 **Artifact** 存档（在 Actions 运行页面下载）。
+- **推送形如 `v1.2.3` 的 tag**：额外创建 **GitHub Release**，同时附带上述两个文件，版本号取自 tag。
 
 发布一个正式版本示例：
 

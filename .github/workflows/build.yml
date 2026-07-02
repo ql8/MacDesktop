@@ -2,8 +2,9 @@ name: Build Installer
 
 # 触发条件：
 #   - push 到 main / master：跑构建，产物作为 Artifact 存档
-#   - push 形如 v1.2.3 的 tag：构建 + 自动创建 GitHub Release 并附带安装包
+#   - push 形如 v1.2.3 的 tag：构建 + 自动创建 GitHub Release
 #   - 手动触发（Actions 页面 Run workflow）
+# 每次都产出两种版本：安装包(MacDesktop-Setup-vX.exe) + 免安装单文件(MacDesktop-vX-portable.exe)
 on:
   push:
     branches: [main, master]
@@ -59,18 +60,30 @@ jobs:
           installer\MacDesktop.iss
         shell: pwsh
 
-      # 存档产物（所有构建都上传，便于下载测试）
+      # 整理发布产物：安装包 + 免安装单文件 exe，统一放入 dist/ 并带版本号命名
+      - name: Stage release files
+        shell: pwsh
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          # 安装包版
+          Copy-Item "installer/Output/MacDesktop-Setup.exe" "dist/MacDesktop-Setup-v$v.exe" -Force
+          # 免安装（绿色）单文件版，双击即用
+          Copy-Item "publish-standalone/MacDesktop.exe" "dist/MacDesktop-v$v-portable.exe" -Force
+          Get-ChildItem dist | Format-Table Name, Length
+
+      # 存档产物（所有构建都上传，便于下载测试）：同时含安装包与免安装版
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MacDesktop-Setup-${{ steps.ver.outputs.version }}
-          path: installer/Output/MacDesktop-Setup.exe
+          name: MacDesktop-${{ steps.ver.outputs.version }}
+          path: dist/*
           if-no-files-found: error
 
-      # 仅当推送 tag 时创建 Release 并附带安装包
+      # 仅当推送 tag 时创建 Release，同时附带安装包与免安装版
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/Output/MacDesktop-Setup.exe
+          files: dist/*
           generate_release_notes: true
