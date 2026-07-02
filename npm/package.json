@@ -1,0 +1,33 @@
+{
+  "name": "macdesktop",
+  "version": "1.0.0",
+  "description": "Windows 虚拟桌面 (Virtual Desktop) 控制 API，供 Electron / Node.js 调用：新建/切换/删除桌面、把窗口移动到指定桌面等",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build-bridge": "node scripts/build-bridge.js"
+  },
+  "files": [
+    "lib/",
+    "bin/",
+    "README.md"
+  ],
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "windows",
+    "virtual-desktop",
+    "electron",
+    "spaces",
+    "macos",
+    "desktop"
+  ],
+  "license": "MIT"
+}

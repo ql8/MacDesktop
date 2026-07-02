@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    虚拟桌面 COM 桥接子进程。
+    复用根目录 VirtualDesktopApi.cs（针对当前 Windows build 硬编码的 COM 封装），
+    通过 stdin/stdout 的 JSON 行协议（JSON Lines）对外提供能力，供 Node/Electron 调用。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MacDesktop.Bridge</AssemblyName>
+    <RootNamespace>VirtualDesktop</RootNamespace>
+    <!-- 虚拟桌面 COM 接口按位数编译，强制 x64 最稳妥 -->
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 直接链接根目录的 COM 封装，保持单一实现来源 -->
+    <Compile Include="..\VirtualDesktopApi.cs" Link="VirtualDesktopApi.cs" />
+  </ItemGroup>
+
+</Project>
