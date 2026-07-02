@@ -1,0 +1,15 @@
+# 构建输出
+bin/
+obj/
+publish/
+publish-standalone/
+installer/Output/
+
+# 运行时/日志
+*.log
+
+# 用户/IDE
+.vs/
+*.user
+
+# 说明：icon.ico 是源资源（exe 图标 + 安装包图标），需提交，故不在此忽略。
